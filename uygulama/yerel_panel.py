@@ -62,6 +62,8 @@ class PanelHandler(BaseHTTPRequestHandler):
             return self._send_file(STATIC_DIR / "style.css", "text/css; charset=utf-8")
         if parsed.path == "/app.js":
             return self._send_file(STATIC_DIR / "app.js", "application/javascript; charset=utf-8")
+        if parsed.path == "/logo.png":
+            return self._send_file(BASE_DIR.parent / "logo.png", "image/png")
         if parsed.path == "/api/dashboard":
             return self._send_json(APP.repo.dashboard())
         if parsed.path == "/api/inspector":
