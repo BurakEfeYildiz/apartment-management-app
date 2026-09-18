@@ -1,0 +1,17 @@
+# Local runtime and generated Python files
+uygulama/.venv/
+uygulama/__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# Private apartment data and local documents
+kaynak/*.xlsx
+!kaynak/README.md
+veri/*.db
+veri/yedekler/*.db
+raporlar/*.xlsx
+belgeler/
+
+# Operating-system files
+.DS_Store
+Thumbs.db

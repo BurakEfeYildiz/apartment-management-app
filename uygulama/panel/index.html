@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Apartman Yonetim Uygulamasi V3</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-card">
+          <div class="brand-image"><div class="brand-sky"></div><div class="brand-building building-a"></div><div class="brand-building building-b"></div><div class="brand-building building-c"></div></div>
+          <div class="brand-meta">
+            <p class="brand-kicker">Yonetim</p>
+            <h1>Apartman Yonetimi</h1>
+            <p>Donem bazli yerel takip</p>
+          </div>
+        </div>
+        <nav class="side-nav" aria-label="Ana menu">
+          <button class="nav-item active" type="button" data-hedef="genel-bakis">Genel Bakis</button>
+          <button class="nav-item" type="button" data-hedef="daireler-bolumu">Daireler</button>
+          <button class="nav-item" type="button" data-hedef="borclular-bolumu">Borclular</button>
+          <button class="nav-item" type="button" data-hedef="tahsilatlar-bolumu">Tahsilatlar</button>
+          <button class="nav-item" type="button" data-hedef="cari-hesap-bolumu">Cari Hesap</button>
+          <button class="nav-item" type="button" data-hedef="butce-bolumu">Yillik Butce</button>
+          <button class="nav-item" type="button" data-hedef="giderler-bolumu">Giderler</button>
+          <button class="nav-item" type="button" data-hedef="denetci-bolumu">Denetci</button>
+          <button class="nav-item" type="button" data-hedef="kararlar-bolumu">Karar Defteri</button>
+          <button class="nav-item" type="button" data-hedef="evrak-bolumu">Evrak Arsivi</button>
+          <button class="nav-item" type="button" data-hedef="ayarlar-bolumu">Ayarlar</button>
+        </nav>
+        <div class="side-note"><p class="side-note-title">Canli Veri</p><p>Paneldeki islemler yerel veritabanina kaydedilir. Excel sadece aktarim ve rapor icindir.</p></div>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar" id="genel-bakis">
+          <div><p class="eyebrow">Apartman Yonetim Uygulamasi V3</p><h2>Genel Bakis</h2><p class="subtle">Aktif donem: <strong id="aktifDonem">-</strong>. Icinde bulunulan ay gecikmis borc sayilmaz.</p></div>
+          <div class="topbar-actions"><button id="yenileButonu" class="ghost-btn" type="button">Yenile</button><button id="yedekButonu" class="ghost-btn" type="button">Veritabani Yedekle</button><button id="excelRaporButonu" class="primary-btn" type="button">Excel Raporu Uret</button></div>
+        </header>
+
+        <section class="durum-cubugu"><div id="durumMesaji">Panel hazirlaniyor...</div></section>
+
+        <section class="finance-grid" id="finansKartlari">
+          <article class="finance-card aidat-card"><div class="finance-head"><span class="finance-kicker">Aidat</span><span class="finance-period">Donem bazli</span></div><div class="finance-metrics"><div><small>Tahakkuk</small><strong id="aidatTahakkuk">0 TL</strong></div><div><small>Tahsilat</small><strong id="aidatTahsilat">0 TL</strong></div><div><small>Bekleyen</small><strong id="aidatBekleyen">0 TL</strong></div><div><small>Gecikmis</small><strong id="aidatGecikmis">0 TL</strong></div><div><small>Toplam Gider</small><strong id="aidatGider">0 TL</strong></div><div><small>Tahsilat Orani</small><strong id="aidatOran">0%</strong></div></div></article>
+          <article class="finance-card demirbas-card"><div class="finance-head"><span class="finance-kicker">Demirbas</span><span class="finance-period">Donem bazli</span></div><div class="finance-metrics"><div><small>Tahakkuk</small><strong id="demirbasTahakkuk">0 TL</strong></div><div><small>Tahsilat</small><strong id="demirbasTahsilat">0 TL</strong></div><div><small>Bekleyen</small><strong id="demirbasBekleyen">0 TL</strong></div><div><small>Gecikmis</small><strong id="demirbasGecikmis">0 TL</strong></div><div><small>Toplam Gider</small><strong id="demirbasGider">0 TL</strong></div><div><small>Tahsilat Orani</small><strong id="demirbasOran">0%</strong></div></div></article>
+        </section>
+
+        <section class="content-grid overview-grid">
+          <article class="panel action-panel"><div class="panel-head light"><h3>Takip Gerektirenler</h3><span id="aksiyonOzeti" class="badge">Yukleniyor</span></div><div id="aksiyonListesi" class="action-list"></div></article>
+          <article class="panel"><div class="panel-head"><h3>Donem Durumu</h3><span class="muted">YYYY-AA</span></div><div class="table-wrap"><table><thead><tr><th>Donem</th><th>Durum</th><th>Aidat Tahakkuk</th><th>Aidat Kalan</th><th>Demirbas Tahakkuk</th><th>Demirbas Kalan</th></tr></thead><tbody id="donemlerTablosu"></tbody></table></div></article>
+        </section>
+
+        <section class="panel" id="daireler-bolumu"><div class="panel-head"><div><h3>Daireler ve Muafiyetler</h3><p class="muted">Muafiyet verilen tur icin yeni tahakkuk olusturulmaz.</p></div></div><div class="table-wrap"><table><thead><tr><th>Daire</th><th>Isim</th><th>Durum</th><th>Telefon</th><th>Aidat Muaf</th><th>Demirbas Muaf</th><th>Islem</th></tr></thead><tbody id="dairelerTablosu"></tbody></table></div></section>
+
+        <section class="panel" id="borclular-bolumu"><div class="panel-head"><div><h3>Borclu Daireler</h3><p class="muted">Sadece aktif aydan onceki ve henuz kapanmamis donemler listelenir.</p></div></div><div class="table-wrap"><table><thead><tr><th>Daire</th><th>Ad Soyad</th><th>Aidat Eksikleri</th><th>Demirbas Eksikleri</th><th>Donem Sayisi</th><th>Telefon</th><th>Mesaj</th><th>Islem</th></tr></thead><tbody id="borclularTablosu"></tbody></table></div></section>
+
+        <section class="content-grid lower-grid" id="tahsilatlar-bolumu">
+          <article class="panel"><div class="panel-head"><h3>Tahsilat Kaydet</h3><span class="muted">Bir odeme tek doneme baglanir</span></div><form id="odemeFormu" class="form-grid"><label>Daire<select id="odemeDaireSecimi" name="unit_id" required></select></label><label>Yukumluluk<select id="odemeTuruSecimi" name="charge_type" required><option value="aidat">Aidat</option><option value="demirbas">Demirbas</option></select></label><label>Donem<select id="odemeDonemSecimi" name="period_key" required></select></label><label>Tarih<input name="payment_date" type="date" required></label><label>Tutar<input name="amount" type="number" min="0" step="0.01" placeholder="Ornek 1500" required></label><label>Yontem<select name="payment_method"><option value="banka">Banka</option><option value="kasa">Kasa</option><option value="havale">Havale</option><option value="diger">Diger</option></select></label><label class="full-width">Not<input name="note" type="text" placeholder="Opsiyonel aciklama"></label><button class="primary-btn" type="submit">Tahsilati Kaydet</button></form></article>
+          <article class="panel"><div class="panel-head"><h3>Donem Bazli Grafik</h3><span class="muted">Tahakkuk / tahsilat / kalan</span></div><div id="donemGrafikleri" class="bar-chart"></div></article>
+        </section>
+
+        <section class="panel" id="cari-hesap-bolumu"><div class="panel-head"><div><h3>Cari Hesap</h3><p class="muted">Tahakkuk ve tahsilat hareketleri kronolojik sirada.</p></div><select id="cariDaireSecimi" class="compact-select"></select></div><div class="table-wrap"><table><thead><tr><th>Tarih</th><th>Hareket</th><th>Tur</th><th>Donem</th><th>Tutar</th><th>Aciklama</th></tr></thead><tbody id="cariHesapTablosu"></tbody></table></div></section>
+
+        <section class="panel" id="butce-bolumu"><div class="panel-head"><div><h3>Yillik Butce</h3><p class="muted">Donemlik tutarlari belirle; beklenen gelir muafiyetlere gore hesaplanir.</p></div></div><div class="forms-grid"><form id="butceFormu" class="action-form"><h4>Butce Kaydet</h4><label>Yil<input name="year" type="number" min="2020" max="2100" required></label><label>Donemlik Aidat Tutari<input name="aidat" type="number" min="0" step="0.01" required></label><label>Donemlik Demirbas Tutari<input name="demirbas" type="number" min="0" step="0.01" required></label><button type="submit">Butceyi Kaydet</button></form><form id="donemFormu" class="action-form"><h4>Yeni Donem Ekle</h4><label>Donem<input name="period_key" type="text" placeholder="2027-01" pattern="[0-9]{4}-[0-9]{2}" required></label><button type="submit">Donemi Olustur</button></form><div class="panel-subcard"><h4>Kayitli Butceler</h4><div id="butceListesi"></div></div></div></section>
+
+        <section class="content-grid lower-grid" id="giderler-bolumu"><article class="panel"><div class="panel-head"><h3>Yeni Gider</h3><span class="muted">Aidat veya demirbas butcesine baglanir</span></div><form id="giderFormu" class="form-grid"><label>Tarih<input name="expense_date" type="date" required></label><label>Belge No<input name="document_no" type="text"></label><label>Firma<input name="vendor" type="text" required></label><label>Aciklama<input name="description" type="text" required></label><label>Kategori<select id="giderKategoriSecimi" name="category" required></select></label><label>Butce Turu<select id="giderButceSecimi" name="budget_type" required></select></label><label>Tutar<input name="amount" type="number" min="0" step="0.01" required></label><button class="primary-btn" type="submit">Gideri Kaydet</button></form></article><article class="panel"><div class="panel-head"><h3>Gider Kategorileri</h3><span class="muted">Detay icin satira tikla</span></div><div id="giderGruplari" class="expense-groups"></div></article></section>
+
+        <section class="panel" id="denetci-bolumu"><div class="panel-head"><div><h3>Denetci Ozeti</h3><p class="muted">Salt okunur finansal kontrol gorunumu.</p></div><button id="denetciYenileButonu" class="ghost-btn" type="button">Raporu Yenile</button></div><div id="denetciKartlari" class="audit-grid"></div></section>
+
+        <section class="panel" id="kararlar-bolumu"><div class="panel-head"><h3>Karar Defteri</h3><span class="muted">Karar kaydi ve arama altyapisi</span></div><form id="kararFormu" class="form-grid"><label>Karar No<input name="decision_no" type="text" required></label><label>Tarih<input name="decision_date" type="date" required></label><label>Baslik<input name="title" type="text" required></label><label class="full-width">Karar Metni<textarea name="body" rows="3" required></textarea></label><button class="primary-btn" type="submit">Karari Kaydet</button></form><div id="kararListesi" class="decision-list"></div></section>
+
+        <section class="panel" id="evrak-bolumu"><div class="panel-head"><h3>Evrak Arsivi</h3><span class="muted">Dosya ve metadata yerel olarak tutulur</span></div><form id="evrakFormu" class="form-grid"><label>Belge Turu<select id="evrakTuruSecimi" name="document_type" required></select></label><label>Ilgili Daire<select id="evrakDaireSecimi" name="unit_id"><option value="">Genel belge</option></select></label><label class="full-width">Dosya<input id="evrakDosyasi" type="file" required></label><button class="primary-btn" type="submit">Belgeyi Arsivle</button></form><div id="evrakListesi" class="document-list"></div></section>
+
+        <section class="panel" id="ayarlar-bolumu"><div class="panel-head"><h3>Ayarlar ve Yedekleme</h3><span class="muted">Gecikme tazminati varsayilan olarak kapali</span></div><div class="settings-grid"><form id="gecikmeFormu" class="action-form"><h4>Gecikme Tazminati Altyapisi</h4><label><span><input name="enabled" type="checkbox"> Aktif</span></label><label>Oran (%)<input name="rate" type="number" min="0" step="0.01" value="0"></label><label>Yontem<select name="calculation_method"><option value="simple_monthly">Aylik basit oran</option><option value="daily">Gunluk oran</option></select></label><label>Baslangic Tarihi<input name="effective_date" type="date"></label><button type="submit">Ayarlari Kaydet</button></form><div class="action-form"><h4>Yedek Yonetimi</h4><button id="yedekOlusturButonu" type="button">Yeni Yedek Olustur</button><select id="yedekSecimi"></select><button id="yedekGeriYukleButonu" class="danger-btn" type="button">Secili Yedegi Geri Yukle</button><p class="muted">Geri yukleme mevcut verinin once otomatik yedegini alir.</p></div></div></section>
+      </main>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>
