@@ -84,6 +84,7 @@ def normalize_text(value: Any) -> str:
         str(value or "")
         .strip()
         .lower()
+        .replace("\u0307", "")
         .replace("ı", "i")
         .replace("ğ", "g")
         .replace("ş", "s")

@@ -1,5 +1,6 @@
 # Local runtime and generated Python files
 uygulama/.venv/
+uygulama/.venv_eski/
 uygulama/__pycache__/
 **/__pycache__/
 *.py[cod]
