@@ -27,7 +27,7 @@ DOCUMENTS_DIR = PROJECT_DIR / "belgeler"
 SCHEMA_VERSION = 3
 
 CHARGE_TYPES = ("aidat", "demirbas")
-CHARGE_LABELS = {"aidat": "Aidat", "demirbas": "Demirbas"}
+CHARGE_LABELS = {"aidat": "Aidat", "demirbas": "Demirbaş"}
 EXPENSE_CATEGORIES = [
     "Asansor",
     "Bahce/Peyzaj",
@@ -41,7 +41,7 @@ EXPENSE_CATEGORIES = [
     "Yonetim",
     "Ilaclama",
 ]
-BUDGET_TYPES = ["Aidat", "Demirbas"]
+BUDGET_TYPES = ["Aidat", "Demirbaş"]
 RESIDENT_TYPES = ["Ev Sahibi", "Kiraci"]
 DOCUMENT_TYPES = ["Makbuz", "Fatura", "Toplanti Tutanağı", "Karar Defteri", "Denetci Raporu", "Diger"]
 PERIOD_PATTERN = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")
@@ -61,17 +61,17 @@ MONTH_NAMES = {
 }
 MONTH_LABELS = {
     1: "Ocak",
-    2: "Subat",
+    2: "Şubat",
     3: "Mart",
     4: "Nisan",
-    5: "Mayis",
+    5: "Mayıs",
     6: "Haziran",
     7: "Temmuz",
-    8: "Agustos",
-    9: "Eylul",
+    8: "Ağustos",
+    9: "Eylül",
     10: "Ekim",
-    11: "Kasim",
-    12: "Aralik",
+    11: "Kasım",
+    12: "Aralık",
 }
 
 
@@ -120,6 +120,14 @@ def to_cents(value: Any) -> int:
 
 def cents_to_number(value: Any) -> float:
     return round(int(value or 0) / 100, 2)
+
+
+def money_text(amount_cents: int) -> str:
+    amount = Decimal(int(amount_cents or 0)) / Decimal("100")
+    text = f"{amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    if text.endswith(",00"):
+        text = text[:-3]
+    return f"{text} TL"
 
 
 def safe_number(value: Any) -> float:
@@ -761,20 +769,20 @@ class ApartmentRepository:
             overdue_rows = self._obligation_rows(conn, overdue_only=True)
             grouped: dict[int, dict[str, Any]] = {}
             for row in overdue_rows:
-                item = grouped.setdefault(row["unit_id"], {"unit_id": row["unit_id"], "daire": row["unit_number"], "isim": row["resident_name"], "durum": row["resident_type"], "telefon": row["phone"], "aidat_periodleri": [], "demirbas_periodleri": [], "aidat_remaining": 0, "demirbas_remaining": 0, "overdue_period_count": 0})
+                item = grouped.setdefault(row["unit_id"], {"unit_id": row["unit_id"], "daire": row["unit_number"], "isim": row["resident_name"], "durum": row["resident_type"], "telefon": row["phone"], "aidat_periodleri": [], "demirbas_periodleri": [], "aidat_detaylari": [], "demirbas_detaylari": [], "aidat_remaining": 0, "demirbas_remaining": 0, "overdue_period_count": 0})
                 item["overdue_period_count"] += 1
                 item[f"{row['charge_type']}_remaining"] += cents_to_number(row["remaining_cents"])
                 item[f"{row['charge_type']}_periodleri"].append(row["period_key"])
+                item[f"{row['charge_type']}_detaylari"].append({"donem": period_label(row["period_key"]), "tutar": cents_to_number(row["remaining_cents"]), "tutar_metni": money_text(row["remaining_cents"])})
             debtors = []
             for item in sorted(grouped.values(), key=lambda value: value["aidat_remaining"] + value["demirbas_remaining"], reverse=True):
-                periods_text = []
-                if item["aidat_periodleri"]:
-                    periods_text.append(f"Aidat: {', '.join(item['aidat_periodleri'])}")
-                if item["demirbas_periodleri"]:
-                    periods_text.append(f"Demirbas: {', '.join(item['demirbas_periodleri'])}")
-                item["message"] = f"Merhaba, kayitlarimiza gore {'; '.join(periods_text)} eksik gorunuyor. Kontrol ederek odeme yapmanizi rica ederiz."
-                item["eksik_donemler"] = periods_text
+                detaylar = item["aidat_detaylari"] + item["demirbas_detaylari"]
+                mesaj_satirlari = ["Sayın Komşum, iyi günler dilerim.", "", "📌 Borç Bilgileri"]
+                mesaj_satirlari.extend(f"{detay['donem']} {CHARGE_LABELS[tur]}: {detay['tutar_metni']}" for tur in CHARGE_TYPES for detay in item[f"{tur}_detaylari"])
                 item["total_remaining"] = round(item["aidat_remaining"] + item["demirbas_remaining"], 2)
+                mesaj_satirlari.extend(["", f"➡️ Toplam Borç: {money_text(sum(int(round(detay['tutar'] * 100)) for detay in detaylar))}"])
+                item["message"] = "\n".join(mesaj_satirlari)
+                item["eksik_donemler"] = [f"{detay['donem']} {CHARGE_LABELS[tur]}: {detay['tutar_metni']}" for tur in CHARGE_TYPES for detay in item[f"{tur}_detaylari"]]
                 debtors.append(item)
             units = []
             for row in conn.execute("SELECT id, unit_number AS daire, resident_name AS isim, resident_type AS durum, phone, aidat_muaf, demirbas_muaf FROM units WHERE active = 1 ORDER BY unit_number").fetchall():
@@ -788,6 +796,9 @@ class ApartmentRepository:
                 row["aidat"] = cents_to_number(row.pop("aidat_cents")); row["demirbas"] = cents_to_number(row.pop("demirbas_cents"))
                 row["aidat_beklenen_yillik"] = round(row["aidat"] * eligible_aidat * 12, 2)
                 row["demirbas_beklenen_yillik"] = round(row["demirbas"] * eligible_demirbas * 12, 2)
+            expense_months = []
+            for row in conn.execute("SELECT substr(expense_date, 1, 7) AS period_key, budget_type, SUM(amount_cents) AS amount_cents FROM expenses GROUP BY period_key, budget_type ORDER BY period_key DESC").fetchall():
+                expense_months.append({"period_key": row["period_key"], "budget_type": normalize_text(row["budget_type"]), "amount": cents_to_number(row["amount_cents"])})
             return {
                 "summary": {"current_period": current_period_key(), "total_collected": round(total_collected, 2), "total_expenses": round(total_expenses, 2), "net_balance": round(total_collected - total_expenses, 2), "total_outstanding": round(aidat["remaining"] + demirbas["remaining"], 2), "debtor_count": len(debtors), "overdue_period_count": sum(item["overdue_period_count"] for item in debtors), "updated_at": now_text()},
                 "aidat": aidat,
@@ -797,6 +808,7 @@ class ApartmentRepository:
                 "debtors": debtors,
                 "apartments": units,
                 "recent_expenses": self._expense_rows(conn),
+                "expense_months": expense_months,
                 "expense_groups": self._expense_groups(conn),
                 "tracking": {"aidat_risk": aidat["overdue"], "demirbas_risk": demirbas["overdue"], "missing_phone_count": sum(1 for item in units if not item["phone"]), "exempt_count": sum(1 for item in units if item["aidat_muaf"] or item["demirbas_muaf"]), "overdue_period_count": sum(item["overdue_period_count"] for item in debtors)},
                 "budgets": budget_rows,
@@ -925,7 +937,7 @@ class ApartmentRepository:
             unit = conn.execute("SELECT id, unit_number, resident_name, phone FROM units WHERE id = ?", (unit_id,)).fetchone()
             if not unit:
                 raise ValueError("Daire bulunamadi.")
-            movements = [dict(row) for row in conn.execute("SELECT am.movement_date, am.movement_type, am.direction, am.charge_type, am.amount_cents, am.description, am.period_id, p.period_key, am.obligation_id, am.payment_id FROM account_movements am LEFT JOIN periods p ON p.id = am.period_id WHERE am.unit_id = ? ORDER BY am.movement_date, am.id", (unit_id,)).fetchall()]
+            movements = [dict(row) for row in conn.execute("SELECT am.movement_date, am.movement_type, am.direction, am.charge_type, am.amount_cents, am.description, am.period_id, p.period_key, am.obligation_id, am.payment_id FROM account_movements am LEFT JOIN periods p ON p.id = am.period_id WHERE am.unit_id = ? AND NOT (am.movement_type = 'tahakkuk' AND COALESCE((SELECT SUM(pa.amount_cents) FROM payment_allocations pa WHERE pa.obligation_id = am.obligation_id), 0) >= am.amount_cents) ORDER BY am.movement_date, am.id", (unit_id,)).fetchall()]
             for movement in movements:
                 movement["amount"] = cents_to_number(movement.pop("amount_cents"))
                 movement["charge_label"] = CHARGE_LABELS.get(movement.get("charge_type"), "")
@@ -998,8 +1010,8 @@ class ApartmentRepository:
     def inspector_report(self) -> dict[str, Any]:
         data = self.dashboard()
         with self.connect() as conn:
-            undocumented = conn.execute("SELECT COUNT(*) FROM expenses WHERE document_no IS NULL OR document_no = ''").fetchone()[0]
-            data["inspector"] = {"aidat_tahsilat_orani": data["aidat"]["rate"], "demirbas_tahsilat_orani": data["demirbas"]["rate"], "kasa_bakiyesi": data["summary"]["net_balance"], "banka_bakiyesi": None, "belgesiz_gider_sayisi": undocumented, "telefonu_eksik_kayit": data["tracking"]["missing_phone_count"], "borclu_daire_sayisi": data["summary"]["debtor_count"]}
+            undocumented = conn.execute("SELECT COUNT(*) FROM expenses WHERE (document_no IS NULL OR trim(document_no) = '') AND document_id IS NULL").fetchone()[0]
+            data["inspector"] = {"aidat_tahsilat_orani": data["aidat"]["rate"], "demirbas_tahsilat_orani": data["demirbas"]["rate"], "kasa_bakiyesi": data["summary"]["net_balance"], "kasa_bakiyesi_aidat": data["aidat"]["net"], "kasa_bakiyesi_demirbas": data["demirbas"]["net"], "banka_bakiyesi": None, "belgesiz_gider_sayisi": undocumented, "belgesiz_gider_kriteri": "Belge numarası girilmemiş ve arşive dosya bağlanmamış giderler.", "telefonu_eksik_kayit": data["tracking"]["missing_phone_count"], "borclu_daire_sayisi": data["summary"]["debtor_count"]}
             conn.execute("INSERT INTO audit_reports(report_date, report_type, payload_json, created_at) VALUES (?, 'denetci_ozeti', ?, ?)", (date.today().isoformat(), json.dumps(data["inspector"], ensure_ascii=False), now_text()))
         return data["inspector"]
 

@@ -5,6 +5,7 @@ const oran = (deger) => new Intl.NumberFormat("tr-TR", { style: "percent", minim
 const kacis = (deger) => String(deger ?? "").replace(/[&<>"']/g, (karakter) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[karakter]));
 const hareketAdlari = { tahakkuk: "Tahakkuk", tahsilat: "Tahsilat", gider: "Gider", duzeltme: "Düzeltme" };
 const turAdlari = { aidat: "Aidat", demirbas: "Demirbaş" };
+const ayAdlari = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
 async function api(adres, secenekler = {}) {
   const yanit = await fetch(adres, { headers: { "Content-Type": "application/json" }, ...secenekler });
@@ -36,10 +37,13 @@ function sayfayaGit(sayfa) {
 
 function finansOzetiniCiz() {
   const ozet = durum.veri.summary;
-  document.getElementById("toplamTahsilat").textContent = para(ozet.total_collected);
-  document.getElementById("toplamBekleyen").textContent = para(ozet.total_outstanding);
+  document.getElementById("toplamAidatTahsilat").textContent = para(durum.veri.aidat.paid);
+  document.getElementById("toplamDemirbasTahsilat").textContent = para(durum.veri.demirbas.paid);
+  document.getElementById("toplamAidatBekleyen").textContent = para(durum.veri.aidat.remaining);
+  document.getElementById("toplamDemirbasBekleyen").textContent = para(durum.veri.demirbas.remaining);
   document.getElementById("toplamGider").textContent = para(ozet.total_expenses);
-  document.getElementById("netBakiye").textContent = para(ozet.net_balance);
+  document.getElementById("netAidat").textContent = para(durum.veri.aidat.net);
+  document.getElementById("netDemirbas").textContent = para(durum.veri.demirbas.net);
   document.getElementById("borcAlt").textContent = `${ozet.debtor_count} daire takipte`;
   document.getElementById("donemBilgisi").textContent = `${ozet.overdue_period_count} geçmiş dönem hareketi`;
   document.getElementById("aktifDonem").textContent = durum.veri.current_period;
@@ -48,8 +52,40 @@ function finansOzetiniCiz() {
   document.getElementById("borcToplamKart").textContent = para(ozet.total_outstanding);
   document.getElementById("aidatRiskKart").textContent = para(durum.veri.tracking.aidat_risk);
   document.getElementById("demirbasRiskKart").textContent = para(durum.veri.tracking.demirbas_risk);
-  document.getElementById("aidatOran").textContent = oran(durum.veri.aidat.rate);
-  document.getElementById("demirbasOran").textContent = oran(durum.veri.demirbas.rate);
+  bekleyenAylariniCiz();
+  giderAylariniCiz();
+  aylikOranlariCiz();
+}
+
+function donemBasligi(donem) {
+  const parcalar = String(donem.key || "").split("-");
+  const ay = Number(parcalar[1]);
+  return parcalar.length === 2 && ayAdlari[ay - 1] ? `${ayAdlari[ay - 1]} ${parcalar[0]}` : donem.label || donem.key;
+}
+
+function bekleyenAylariniCiz() {
+  const satirlar = (durum.veri.periods || []).filter((donem) => donem.aidat.remaining || donem.demirbas.remaining).slice().reverse().slice(0, 4);
+  document.getElementById("bekleyenAyDetayi").innerHTML = satirlar.map((donem) => `<div><span>${kacis(donemBasligi(donem))}</span><b>Aidat ${para(donem.aidat.remaining)} · Demirbaş ${para(donem.demirbas.remaining)}</b></div>`).join("") || "<div><span>Açık alacak yok</span></div>";
+}
+
+function giderAylariniCiz() {
+  const satirlar = durum.veri.expense_months || [];
+  const aylar = [...new Set(satirlar.map((satir) => satir.period_key))];
+  const secim = document.getElementById("giderDonemSecimi");
+  secim.innerHTML = aylar.map((ay) => `<option value="${kacis(ay)}">${kacis(ay)}</option>`).join("") || `<option value="">Kayıt yok</option>`;
+  const guncelle = () => {
+    const ay = secim.value;
+    const aidat = satirlar.find((satir) => satir.period_key === ay && satir.budget_type === "aidat")?.amount || 0;
+    const demirbas = satirlar.find((satir) => satir.period_key === ay && satir.budget_type === "demirbas")?.amount || 0;
+    document.getElementById("giderAyDetayi").textContent = ay ? `${ay} · Aidat ${para(aidat)} · Demirbaş ${para(demirbas)}` : "Aylık gider kaydı yok";
+  };
+  secim.onchange = guncelle;
+  guncelle();
+}
+
+function aylikOranlariCiz() {
+  const donemler = (durum.veri.periods || []).slice().reverse().slice(0, 6);
+  document.getElementById("aylikOranlar").innerHTML = donemler.map((donem) => `<div class="aylik-oran-satiri"><span>${kacis(donemBasligi(donem))}</span><span><i class="oran-cizgi aidat" style="width:${Math.max(2, donem.aidat.rate * 100)}%"></i><b>Aidat ${oran(donem.aidat.rate)}</b></span><span><i class="oran-cizgi demirbas" style="width:${Math.max(2, donem.demirbas.rate * 100)}%"></i><b>Demirbaş ${oran(donem.demirbas.rate)}</b></span></div>`).join("") || `<p class="bos-metin">Henüz dönem verisi yok.</p>`;
 }
 
 function grafikCiz() {
@@ -58,7 +94,7 @@ function grafikCiz() {
   document.getElementById("donemGrafikleri").innerHTML = donemler.slice(-8).map((donem) => {
     const aidatYuzde = Math.max(4, Math.round((donem.aidat.paid / max) * 100));
     const demirbasYuzde = Math.max(4, Math.round((donem.demirbas.paid / max) * 100));
-    return `<div class="grafik-satiri"><span>${kacis(donem.key.slice(5))}</span><div class="grafik-cubuklar"><i class="grafik-cubuk aidat" style="height:${aidatYuzde}%" title="Aidat: ${para(donem.aidat.paid)}"></i><i class="grafik-cubuk demirbas" style="height:${demirbasYuzde}%" title="Demirbaş: ${para(donem.demirbas.paid)}"></i></div></div>`;
+    return `<div class="grafik-satiri"><span>${kacis(donem.key.slice(5))}</span><div class="grafik-cubuklar"><i class="grafik-cubuk aidat" style="height:${aidatYuzde}%" title="Aidat: ${para(donem.aidat.paid)}"></i><i class="grafik-cubuk demirbas" style="height:${demirbasYuzde}%" title="Demirbaş: ${para(donem.demirbas.paid)}"></i></div><small>A ${para(donem.aidat.paid)}<br>D ${para(donem.demirbas.paid)}</small></div>`;
   }).join("");
 }
 
@@ -126,8 +162,8 @@ async function cariHesapYukle(id) {
 async function denetciYukle() {
   try {
     const veri = await api("/api/inspector");
-    const kartlar = [["Aidat tahsilat oranı", oran(veri.aidat_tahsilat_orani), "yesil"], ["Demirbaş tahsilat oranı", oran(veri.demirbas_tahsilat_orani), "mavi"], ["Kasa bakiyesi", para(veri.kasa_bakiyesi), "lacivert"], ["Banka durumu", veri.banka_bakiyesi == null ? "Ayrı tutulmuyor" : para(veri.banka_bakiyesi), "gri"], ["Belgesiz gider", veri.belgesiz_gider_sayisi, "turuncu"], ["Eksik telefon", veri.telefonu_eksik_kayit, "turuncu"]];
-    document.getElementById("denetciKartlari").innerHTML = kartlar.map(([baslik, deger, renk]) => `<div class="denetci-karti"><i class="ikon-kutu ${renk}">✓</i><span>${baslik}</span><strong>${deger}</strong></div>`).join("");
+    const kartlar = [["Aidat tahsilat oranı", oran(veri.aidat_tahsilat_orani), "yesil", "Genel oran"], ["Demirbaş tahsilat oranı", oran(veri.demirbas_tahsilat_orani), "mavi", "Genel oran"], ["Kasa · Aidat", para(veri.kasa_bakiyesi_aidat), "lacivert", "Tahsilat - aidat gideri"], ["Kasa · Demirbaş", para(veri.kasa_bakiyesi_demirbas), "lacivert", "Tahsilat - demirbaş gideri"], ["Belgesiz gider", veri.belgesiz_gider_sayisi, "turuncu", veri.belgesiz_gider_kriteri], ["Eksik telefon", veri.telefonu_eksik_kayit, "turuncu", "Daire kaydında telefon yok"]];
+    document.getElementById("denetciKartlari").innerHTML = kartlar.map(([baslik, deger, renk, aciklama]) => `<div class="denetci-karti"><i class="ikon-kutu ${renk}">✓</i><span>${baslik}</span><strong>${deger}</strong><small>${kacis(aciklama)}</small></div>`).join("");
   } catch (hata) { mesajYaz(hata.message, true); }
 }
 
@@ -200,7 +236,7 @@ async function paneliYukle() {
   } catch (hata) { mesajYaz(hata.message, true); }
 }
 
-document.querySelectorAll("[data-sayfa]").forEach((oge) => oge.addEventListener("click", () => { sayfayaGit(oge.dataset.sayfa); document.getElementById("islemModali").classList.remove("acik"); }));
+document.addEventListener("click", (olay) => { const oge = olay.target.closest("[data-sayfa]"); if (!oge) return; sayfayaGit(oge.dataset.sayfa); document.getElementById("islemModali").classList.remove("acik"); });
 document.querySelectorAll("[data-filtre]").forEach((girdi) => girdi.addEventListener("input", () => filtreUygula(girdi)));
 document.getElementById("odemeTuruSecimi").addEventListener("change", donemSeciminiDoldur);
 document.getElementById("cariDaireSecimi").addEventListener("change", (olay) => cariHesapYukle(olay.target.value));
